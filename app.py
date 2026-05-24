@@ -16,6 +16,14 @@ from reviewer import review_code
 
 st.set_page_config(page_title="Smart Code Reviewer", page_icon="🔍", layout="wide")
 
+# If a server-side secret is configured (Streamlit Cloud → Manage app → Settings → Secrets),
+# promote it to env so reviewer.py picks it up without each visitor needing their own key.
+try:
+    if "GEMINI_API_KEY" in st.secrets and not os.environ.get("GEMINI_API_KEY"):
+        os.environ["GEMINI_API_KEY"] = st.secrets["GEMINI_API_KEY"]
+except Exception:
+    pass  # No secrets.toml in local dev — fall through to sidebar input.
+
 SAMPLES_DIR = Path(__file__).parent / "samples"
 
 
@@ -46,14 +54,17 @@ st.caption(
 
 with st.sidebar:
     st.header("⚙️ Settings")
-    api_key = st.text_input(
-        "Gemini API Key",
-        type="password",
-        value=os.environ.get("GEMINI_API_KEY", ""),
-        help="Only used in this session. Not stored.",
-    )
-    if api_key:
-        os.environ["GEMINI_API_KEY"] = api_key
+    if os.environ.get("GEMINI_API_KEY"):
+        st.success("🔑 API key configured")
+        st.caption("A server-side key is set — just paste code and click Review.")
+    else:
+        api_key = st.text_input(
+            "Gemini API Key",
+            type="password",
+            help="Get one free at aistudio.google.com/apikey. Only used in this session.",
+        )
+        if api_key:
+            os.environ["GEMINI_API_KEY"] = api_key
 
     language_hint = st.selectbox(
         "Language hint (optional)",
