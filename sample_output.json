@@ -1,0 +1,122 @@
+{
+  "samples/python_messy.py": {
+    "language": "python",
+    "summary": "The code demonstrates basic data fetching and processing, but has significant issues with error handling, readability, and maintainability due to magic numbers and deep nesting.",
+    "scores": {
+      "readability": 3,
+      "structure": 4,
+      "maintainability": 2
+    },
+    "improvements": [
+      {
+        "priority": "high",
+        "category": "maintainability",
+        "issue": "The broad 'except' in get_data hides specific network or JSON parsing errors, making debugging difficult and potentially masking critical issues.",
+        "location": "get_data",
+        "suggestion": "Catch specific exceptions like requests.exceptions.RequestException and json.JSONDecodeError to handle errors gracefully and log details.",
+        "example": "except requests.exceptions.RequestException as e: # log e"
+      },
+      {
+        "priority": "high",
+        "category": "readability",
+        "issue": "Deeply nested 'if' statements in 'process' make the logic hard to read, extend, and prone to errors. Dictionary access lacks safety.",
+        "location": "process",
+        "suggestion": "Flatten conditions using 'and' and use .get() for dictionary access to prevent KeyError, improving clarity and robustness.",
+        "example": "if d.get('status') == 1 and d.get('amount', 0) > 100 and d.get('country') in ALLOWED_COUNTRIES:"
+      },
+      {
+        "priority": "medium",
+        "category": "maintainability",
+        "issue": "Magic numbers and hardcoded values (e.g., 1, 100, 1.1, country codes, retry count, sleep duration) reduce flexibility and clarity.",
+        "location": "general",
+        "suggestion": "Define these values as named constants at the module level or pass them as configurable parameters to improve maintainability.",
+        "example": "STATUS_ACTIVE = 1; MIN_AMOUNT = 100; TAX_RATE = 1.1; ALLOWED_COUNTRIES = {'US', 'CA', 'UK'}"
+      }
+    ],
+    "positive": "The clear separation of concerns into `get_data`, `process`, and `main` functions is a good structural choice.",
+    "ready_for_human_review": true,
+    "blockers": []
+  },
+  "samples/typescript_react.tsx": {
+    "language": "typescript",
+    "summary": "The component fetches and displays a user list, but lacks type safety and error handling for the API call.",
+    "scores": {
+      "readability": 4,
+      "structure": 3,
+      "maintainability": 2
+    },
+    "improvements": [
+      {
+        "priority": "high",
+        "category": "correctness",
+        "issue": "Using `any` for props and user types defeats TypeScript's purpose, reducing type safety and making refactoring difficult.",
+        "location": "UserList function signature",
+        "suggestion": "Define explicit interfaces for `UserListProps` and `User` to leverage TypeScript's benefits.",
+        "example": "interface User { id: string; name: string; email: string; } interface UserListProps { onSelect: (id: string) => void; }"
+      },
+      {
+        "priority": "high",
+        "category": "maintainability",
+        "issue": "The `fetch` call lacks error handling, which can lead to a broken UI or silent failures if the API request fails.",
+        "location": "useEffect",
+        "suggestion": "Add a `.catch()` block to the fetch promise to handle network errors and display appropriate user feedback.",
+        "example": "fetch(...).then(...).catch(error => { console.error('Fetch error:', error); setLoading(false); /* setError(true); */ });"
+      },
+      {
+        "priority": "medium",
+        "category": "structure",
+        "issue": "The data fetching logic is directly embedded in the component, coupling it tightly to the API call.",
+        "location": "useEffect",
+        "suggestion": "Extract the data fetching into a custom hook or a separate utility function to improve separation of concerns and testability.",
+        "example": "function useUsers() { /* ... fetch logic ... */ return { users, loading, error }; }"
+      }
+    ],
+    "positive": "The use of `useEffect` with an empty dependency array correctly ensures the data fetch happens only once on mount.",
+    "ready_for_human_review": false,
+    "blockers": [
+      "Lack of type safety due to `any` usage",
+      "Missing error handling for API fetch"
+    ]
+  },
+  "samples/go_handler.go": {
+    "language": "go",
+    "summary": "The Go HTTP server is functional but has critical issues with error handling, concurrency safety, and mixes concerns within a single handler.",
+    "scores": {
+      "readability": 4,
+      "structure": 3,
+      "maintainability": 2
+    },
+    "improvements": [
+      {
+        "priority": "high",
+        "category": "correctness",
+        "issue": "Missing error handling for JSON operations and `r.Body.Close()` can lead to silent failures or resource leaks.",
+        "location": "handler",
+        "suggestion": "Add `if err != nil` checks for `Decode` and `Encode`, and `defer r.Body.Close()` for the request body.",
+        "example": "defer r.Body.Close()\nif err := json.NewDecoder(r.Body).Decode(&o); err != nil { http.Error(w, err.Error(), http.StatusBadRequest); return }"
+      },
+      {
+        "priority": "high",
+        "category": "correctness",
+        "issue": "The global `orders` slice is modified without synchronization, leading to race conditions in a concurrent environment.",
+        "location": "orders variable, handler",
+        "suggestion": "Protect access to `orders` with a `sync.Mutex` to ensure thread safety for reads and writes.",
+        "example": "var (\n\torders = []Order{}\n\tordersMu sync.Mutex\n)\nfunc handler(...) { ordersMu.Lock(); defer ordersMu.Unlock(); ... }"
+      },
+      {
+        "priority": "medium",
+        "category": "structure",
+        "issue": "The `handler` function combines logic for multiple HTTP methods, which can become less readable and harder to manage.",
+        "location": "handler",
+        "suggestion": "Extract method-specific logic into separate, smaller functions (e.g., `handleGetOrders`, `handlePostOrder`) for better separation of concerns.",
+        "example": "func handler(w http.ResponseWriter, r *http.Request) { switch r.Method { case \"POST\": handlePostOrder(w, r); case \"GET\": handleGetOrders(w, r); default: http.Error(w, \"Method not allowed\", http.StatusMethodNotAllowed) } }"
+      }
+    ],
+    "positive": "The use of `json` struct tags for `ID` and `Amount` is idiomatic Go and simplifies JSON serialization/deserialization.",
+    "ready_for_human_review": false,
+    "blockers": [
+      "Missing error handling for JSON operations and `r.Body.Close()`",
+      "Global mutable state `orders` is not thread-safe"
+    ]
+  }
+}
