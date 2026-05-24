@@ -1,0 +1,468 @@
+{
+  "meta": {
+    "timestamp": "2026-05-24T18:37:55",
+    "model": "gemini-2.5-flash",
+    "elapsed_sec": 49.5
+  },
+  "aggregate": {
+    "total_items": 5,
+    "total_pass": 3,
+    "total_fail": 2,
+    "pass_rate": 60.0,
+    "by_slice": {
+      "bug-fix": {
+        "pass": 3,
+        "fail": 2,
+        "total": 5
+      }
+    },
+    "score_distribution": {
+      "readability": {
+        "n": 5,
+        "mean": 3.6,
+        "stdev": 0.89,
+        "min": 3,
+        "max": 5
+      },
+      "structure": {
+        "n": 5,
+        "mean": 4,
+        "stdev": 0.71,
+        "min": 3,
+        "max": 5
+      },
+      "maintainability": {
+        "n": 5,
+        "mean": 3,
+        "stdev": 1.41,
+        "min": 2,
+        "max": 5
+      }
+    }
+  },
+  "results": [
+    {
+      "item": {
+        "id": "bug-001-mutable-default-arg",
+        "slice": "bug-fix",
+        "pair_id": 1,
+        "variant": "bug",
+        "language": "python",
+        "code": "def add_user(name, history=[]):\n    history.append(name)\n    return history\n",
+        "expected": {
+          "scores": {
+            "maintainability": {
+              "min": 1,
+              "max": 3
+            }
+          },
+          "must_flag_categories": [
+            "correctness",
+            "maintainability"
+          ],
+          "must_be_ready": true,
+          "notes": "Mutable default argument \u2014 classic Python anti-pattern."
+        }
+      },
+      "review": {
+        "language": "python",
+        "summary": "The code has a critical issue with mutable default arguments, which can lead to unexpected behavior and stateful side effects.",
+        "scores": {
+          "readability": 3,
+          "structure": 3,
+          "maintainability": 2
+        },
+        "improvements": [
+          {
+            "priority": "high",
+            "category": "correctness",
+            "issue": "Using a mutable default argument (history=[]) causes all calls without an explicit history to share the same list object.",
+            "location": "add_user function signature",
+            "suggestion": "Initialize history to None and create a new list inside the function if history is None.",
+            "example": "def add_user(name, history=None): if history is None: history = []"
+          },
+          {
+            "priority": "medium",
+            "category": "readability",
+            "issue": "The function name 'add_user' is misleading; it appends a name to a list, not 'adds a user' in a persistent sense.",
+            "location": "add_user function name",
+            "suggestion": "Rename the function to better reflect its action, such as 'append_name_to_history' or 'get_updated_history'.",
+            "example": "def append_name_to_history(name, history=None):"
+          },
+          {
+            "priority": "low",
+            "category": "maintainability",
+            "issue": "The function modifies the 'history' list in place, which can lead to unexpected side effects for callers.",
+            "location": "history.append(name)",
+            "suggestion": "Consider returning a new list with the appended name to maintain immutability for the caller.",
+            "example": "return (history or []) + [name]"
+          }
+        ],
+        "positive": "The immediate logic of appending the 'name' to the 'history' list is clear and easy to understand.",
+        "ready_for_human_review": false,
+        "blockers": [
+          "Mutable default argument 'history=[]' will cause shared state across function calls."
+        ]
+      },
+      "checks": {
+        "api_call": {
+          "pass": true,
+          "actual": "ok",
+          "expected": "ok"
+        },
+        "score:maintainability": {
+          "pass": true,
+          "actual": 2,
+          "expected": "1\u20133"
+        },
+        "ready_for_review": {
+          "pass": false,
+          "actual": false,
+          "expected": true
+        },
+        "category_coverage": {
+          "pass": true,
+          "actual": [
+            "correctness",
+            "readability",
+            "maintainability"
+          ],
+          "expected": "any of ['correctness', 'maintainability']"
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "bug-001-mutable-default-arg-fix",
+        "slice": "bug-fix",
+        "pair_id": 1,
+        "variant": "fix",
+        "language": "python",
+        "code": "def add_user(name, history=None):\n    if history is None:\n        history = []\n    history.append(name)\n    return history\n",
+        "expected": {
+          "scores": {
+            "readability": {
+              "min": 4,
+              "max": 5
+            },
+            "maintainability": {
+              "min": 4,
+              "max": 5
+            }
+          },
+          "must_be_ready": true
+        }
+      },
+      "review": {
+        "language": "python",
+        "summary": "The code correctly handles mutable default arguments but the function name is misleading for its actual operation.",
+        "scores": {
+          "readability": 3,
+          "structure": 4,
+          "maintainability": 4
+        },
+        "improvements": [
+          {
+            "priority": "high",
+            "category": "readability",
+            "issue": "The function name `add_user` is misleading; it appends a name to a list, not creates a user object.",
+            "location": "add_user",
+            "suggestion": "Rename the function to `append_name_to_history` or `log_name_to_history` to better reflect its action.",
+            "example": "def append_name_to_history(name, history=None):"
+          },
+          {
+            "priority": "medium",
+            "category": "readability",
+            "issue": "Lack of type hints makes the expected types of `name` and `history` implicit, reducing clarity.",
+            "location": "add_user",
+            "suggestion": "Add type hints for `name` (str) and `history` (list[str]) to improve readability and enable static analysis.",
+            "example": "def add_user(name: str, history: list[str] | None = None) -> list[str]:"
+          },
+          {
+            "priority": "low",
+            "category": "structure",
+            "issue": "The function modifies the `history` list in place and then returns it, which can be slightly ambiguous.",
+            "location": "add_user",
+            "suggestion": "Consider if returning the list is always necessary, or if callers should rely solely on the in-place modification.",
+            "example": "null"
+          }
+        ],
+        "positive": "The function correctly handles the mutable default argument by initializing `history = []` when `history` is `None`.",
+        "ready_for_human_review": true,
+        "blockers": []
+      },
+      "checks": {
+        "api_call": {
+          "pass": true,
+          "actual": "ok",
+          "expected": "ok"
+        },
+        "score:readability": {
+          "pass": false,
+          "actual": 3,
+          "expected": "4\u20135"
+        },
+        "score:maintainability": {
+          "pass": true,
+          "actual": 4,
+          "expected": "4\u20135"
+        },
+        "ready_for_review": {
+          "pass": true,
+          "actual": true,
+          "expected": true
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "bug-002-bare-except",
+        "slice": "bug-fix",
+        "pair_id": 2,
+        "variant": "bug",
+        "language": "python",
+        "code": "def safe_int(s):\n    try:\n        return int(s)\n    except:\n        return 0\n",
+        "expected": {
+          "scores": {
+            "maintainability": {
+              "min": 1,
+              "max": 3
+            }
+          },
+          "must_flag_categories": [
+            "correctness",
+            "maintainability"
+          ]
+        }
+      },
+      "review": {
+        "language": "python",
+        "summary": "The `safe_int` function attempts to convert a string to an integer, but its error handling and return value are problematic.",
+        "scores": {
+          "readability": 3,
+          "structure": 4,
+          "maintainability": 2
+        },
+        "improvements": [
+          {
+            "priority": "high",
+            "category": "correctness",
+            "issue": "The bare `except` clause catches all exceptions, including system-level ones, masking potential bugs.",
+            "location": "safe_int",
+            "suggestion": "Catch specific exceptions like `ValueError` for invalid literals, or `TypeError` if `s` isn't a string.",
+            "example": "except ValueError:"
+          },
+          {
+            "priority": "medium",
+            "category": "maintainability",
+            "issue": "Returning `0` on failure is ambiguous, as `0` is also a valid integer, making it impossible to distinguish success from failure.",
+            "location": "safe_int",
+            "suggestion": "Consider returning `None` on failure, or a tuple `(value, success_flag)`, or raising a custom exception.",
+            "example": "return None"
+          },
+          {
+            "priority": "low",
+            "category": "readability",
+            "issue": "The function lacks type hints, which reduces clarity and prevents static analysis from catching type-related issues.",
+            "location": "safe_int",
+            "suggestion": "Add type hints for the input parameter `s` and the return value to improve code readability.",
+            "example": "def safe_int(s: str) -> int | None:"
+          }
+        ],
+        "positive": "The function correctly encapsulates the `try-except` logic for string-to-integer conversion, which is a good pattern.",
+        "ready_for_human_review": false,
+        "blockers": [
+          "The bare `except` clause catches all exceptions, including system-level ones, masking potential bugs.",
+          "Returning `0` on failure is ambiguous, as `0` is also a valid integer, making it impossible to distinguish success from failure."
+        ]
+      },
+      "checks": {
+        "api_call": {
+          "pass": true,
+          "actual": "ok",
+          "expected": "ok"
+        },
+        "score:maintainability": {
+          "pass": true,
+          "actual": 2,
+          "expected": "1\u20133"
+        },
+        "category_coverage": {
+          "pass": true,
+          "actual": [
+            "correctness",
+            "maintainability",
+            "readability"
+          ],
+          "expected": "any of ['correctness', 'maintainability']"
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "bug-002-bare-except-fix",
+        "slice": "bug-fix",
+        "pair_id": 2,
+        "variant": "fix",
+        "language": "python",
+        "code": "def safe_int(s, default=0):\n    try:\n        return int(s)\n    except (ValueError, TypeError):\n        return default\n",
+        "expected": {
+          "scores": {
+            "readability": {
+              "min": 4,
+              "max": 5
+            },
+            "maintainability": {
+              "min": 4,
+              "max": 5
+            }
+          },
+          "must_be_ready": true
+        }
+      },
+      "review": {
+        "language": "python",
+        "summary": "A robust utility function that safely converts input to an integer, gracefully handling common conversion errors.",
+        "scores": {
+          "readability": 5,
+          "structure": 5,
+          "maintainability": 5
+        },
+        "improvements": [
+          {
+            "priority": "low",
+            "category": "readability",
+            "issue": "Adding type hints improves code clarity and enables static analysis for better maintainability.",
+            "location": "safe_int",
+            "suggestion": "Add type hints for parameters and the return value to specify expected types.",
+            "example": "def safe_int(s: str | int | float, default: int = 0) -> int:"
+          },
+          {
+            "priority": "low",
+            "category": "readability",
+            "issue": "A docstring would clearly explain the function's purpose, parameters, and return value.",
+            "location": "safe_int",
+            "suggestion": "Add a concise docstring to describe what the function does.",
+            "example": "def safe_int(...):\n    \"\"\"Converts input to an integer, returning default on error.\"\"\""
+          },
+          {
+            "priority": "low",
+            "category": "maintainability",
+            "issue": "While 0 is a common default, consider if `None` might sometimes be a more explicit 'no valid integer' indicator.",
+            "location": "safe_int",
+            "suggestion": "Evaluate if `None` as a default value would better suit specific use cases where 0 could be a valid result.",
+            "example": "def safe_int(s, default: int | None = None) -> int | None:"
+          }
+        ],
+        "positive": "The function effectively uses a `try-except` block to catch both `ValueError` and `TypeError`, making it robust against various invalid inputs.",
+        "ready_for_human_review": true,
+        "blockers": []
+      },
+      "checks": {
+        "api_call": {
+          "pass": true,
+          "actual": "ok",
+          "expected": "ok"
+        },
+        "score:readability": {
+          "pass": true,
+          "actual": 5,
+          "expected": "4\u20135"
+        },
+        "score:maintainability": {
+          "pass": true,
+          "actual": 5,
+          "expected": "4\u20135"
+        },
+        "ready_for_review": {
+          "pass": true,
+          "actual": true,
+          "expected": true
+        }
+      }
+    },
+    {
+      "item": {
+        "id": "bug-003-resource-leak",
+        "slice": "bug-fix",
+        "pair_id": 3,
+        "variant": "bug",
+        "language": "python",
+        "code": "def read_config(path):\n    f = open(path)\n    data = f.read()\n    return data\n",
+        "expected": {
+          "scores": {
+            "maintainability": {
+              "min": 1,
+              "max": 3
+            }
+          },
+          "must_flag_categories": [
+            "correctness",
+            "maintainability"
+          ]
+        }
+      },
+      "review": {
+        "language": "python",
+        "summary": "The function correctly reads file content but has a critical resource leak and lacks error handling.",
+        "scores": {
+          "readability": 4,
+          "structure": 4,
+          "maintainability": 2
+        },
+        "improvements": [
+          {
+            "priority": "high",
+            "category": "maintainability",
+            "issue": "The file handle is not explicitly closed, leading to a resource leak.",
+            "location": "read_config",
+            "suggestion": "Use a 'with' statement to ensure the file is automatically closed, even if errors occur.",
+            "example": "with open(path) as f:"
+          },
+          {
+            "priority": "medium",
+            "category": "correctness",
+            "issue": "The function does not handle potential file-related errors, such as FileNotFoundError.",
+            "location": "read_config",
+            "suggestion": "Add a try-except block to gracefully handle common I/O errors, informing the caller.",
+            "example": "try: ... except FileNotFoundError: ..."
+          },
+          {
+            "priority": "low",
+            "category": "readability",
+            "issue": "The variable name 'f' is generic; a more descriptive name improves clarity.",
+            "location": "read_config",
+            "suggestion": "Rename 'f' to 'file_handle' or 'config_file' for better context.",
+            "example": "with open(path) as config_file:"
+          }
+        ],
+        "positive": "The function `read_config` has a clear, single responsibility for reading file content.",
+        "ready_for_human_review": false,
+        "blockers": [
+          "Resource leak due to unclosed file handle."
+        ]
+      },
+      "checks": {
+        "api_call": {
+          "pass": true,
+          "actual": "ok",
+          "expected": "ok"
+        },
+        "score:maintainability": {
+          "pass": true,
+          "actual": 2,
+          "expected": "1\u20133"
+        },
+        "category_coverage": {
+          "pass": true,
+          "actual": [
+            "maintainability",
+            "correctness",
+            "readability"
+          ],
+          "expected": "any of ['correctness', 'maintainability']"
+        }
+      }
+    }
+  ]
+}

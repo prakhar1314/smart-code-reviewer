@@ -74,9 +74,50 @@ Get a free Gemini key at https://aistudio.google.com/apikey — generous free ti
 | `requirements.txt` | streamlit + google-generativeai |
 | `SUMMARY.md` | 100-word submission summary |
 
+## Eval harness
+
+A regression-test harness lives in `evals/`. It runs the reviewer against a curated
+golden set of 25 snippets across four slices (bug/fix pairs, security blockers,
+clean reference code, stylistic anti-patterns) and reports pass/fail per check.
+
+```bash
+python evals/run_eval.py            # full run (~3 min, 25 calls)
+python evals/run_eval.py --quick    # 5-item smoke test
+python evals/run_eval.py --slice security  # only the security blockers
+```
+
+### What each check measures
+
+| Check | What it catches |
+|---|---|
+| `score:<dim>` | Reviewer scores drift outside the expected range for a dimension |
+| `ready_for_review` | Reviewer fails to gate (or wrongly gates) human review |
+| `blocker_presence` | Reviewer misses (or hallucinates) a correctness/security blocker |
+| `category_coverage` | Reviewer mentions an unrelated category but skips the obvious one |
+
+Reports are written to `evals/reports/` as both markdown (human-readable) and JSON
+(for diffing in CI). The runner exits with code 1 if any check fails — wire that into
+GitHub Actions to gate prompt changes.
+
+### Baseline
+
+Current baseline: see `evals/reports/baseline.md` (5-item smoke test, 60% pass rate —
+2 failures both surfaced real calibration gaps between my expected ranges and the
+reviewer's actual behavior, not bugs in the reviewer itself).
+
+### Limitations / cost notes
+
+- **Gemini free tier caps you at 20 requests/day** on `gemini-2.5-flash`. A full
+  25-item run hits this. Either upgrade to paid (≈$0.01 for a full run) or use
+  `REVIEWER_MODEL=gemini-2.5-flash-lite` for the eval (1k req/day free).
+- The eval is **stochastic** — model output varies slightly between runs even at
+  `temperature=0.2`. The expected ranges (not exact scores) absorb this.
+- For true regression detection in CI, **run 3x and require 2/3 pass per check** —
+  not implemented here yet.
+
 ## Future work (would build next in a real engagement)
 
-- **Eval harness**: golden set of 50 snippets with expected score ranges; CI gate on prompt changes.
+- ~~**Eval harness**~~ — done, see `evals/`. Next: expand to 100 snippets, add per-run variance tracking, wire into GitHub Actions.
 - **Diff-mode review**: take a git patch instead of a full snippet — closer to real PR review.
 - **GitHub Action**: post the review as a PR comment with sticky updates.
 - **Repo-aware reviews**: feed style guide / past review history via RAG so the reviewer matches team conventions.

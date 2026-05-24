@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import time
 from pathlib import Path
 
@@ -100,9 +101,25 @@ def review_code(code: str, language_hint: str | None = None) -> dict:
             }
         except Exception as exc:
             last_exc = exc
+            msg = str(exc)
             # Retry on 503 (overloaded) and 429 (rate limit) — common transient errors.
-            if "503" in str(exc) or "429" in str(exc) or "UNAVAILABLE" in str(exc):
-                time.sleep(2 ** attempt)
+            if "503" in msg or "429" in msg or "UNAVAILABLE" in msg:
+                # Honor server-supplied retry hint when present; otherwise exp backoff.
+                wait = _parse_retry_seconds(msg) or (2 ** attempt)
+                time.sleep(min(wait, 60))  # cap at 60s — daily quota won't reset in-loop anyway
                 continue
             return {"error": f"API call failed: {exc}"}
     return {"error": f"API call failed after 3 retries: {last_exc}"}
+
+
+def _parse_retry_seconds(err_text: str) -> float:
+    """Extract retry_delay from a Gemini error message. Returns 0 if absent."""
+    for pattern in (
+        r"'retryDelay':\s*'(\d+(?:\.\d+)?)s'",  # JSON-style
+        r"retry_delay\s*\{\s*seconds:\s*(\d+)",   # protobuf-style
+        r"retry in (\d+(?:\.\d+)?)s",              # human-readable
+    ):
+        m = re.search(pattern, err_text)
+        if m:
+            return float(m.group(1))
+    return 0.0

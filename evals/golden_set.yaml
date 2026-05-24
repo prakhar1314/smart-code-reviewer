@@ -1,0 +1,469 @@
+# Smart Code Reviewer — Golden Set
+# 25 curated snippets across 4 slices, used by run_eval.py to regression-test
+# prompt changes. Each item has an expected outcome the reviewer should produce.
+#
+# Slices:
+#   bug-fix     — paired buggy / fixed code. The buggy version should score
+#                 low and flag the issue; the fix should score high and clean.
+#   security    — security-blocker code. Should set ready_for_human_review=false.
+#   clean       — idiomatic reference code. Should score 4+ across all dims.
+#   style       — stylistic anti-patterns. Mid scores, no blockers.
+
+# =====================================================================
+# SLICE 1: BUG/FIX PAIRS  (14 items / 7 pairs)
+# =====================================================================
+
+- id: bug-001-mutable-default-arg
+  slice: bug-fix
+  pair_id: 1
+  variant: bug
+  language: python
+  code: |
+    def add_user(name, history=[]):
+        history.append(name)
+        return history
+  expected:
+    scores:
+      maintainability: { min: 1, max: 3 }
+    must_flag_categories: [correctness, maintainability]
+    must_be_ready: true
+    notes: "Mutable default argument — classic Python anti-pattern."
+
+- id: bug-001-mutable-default-arg-fix
+  slice: bug-fix
+  pair_id: 1
+  variant: fix
+  language: python
+  code: |
+    def add_user(name, history=None):
+        if history is None:
+            history = []
+        history.append(name)
+        return history
+  expected:
+    scores:
+      readability: { min: 4, max: 5 }
+      maintainability: { min: 4, max: 5 }
+    must_be_ready: true
+
+- id: bug-002-bare-except
+  slice: bug-fix
+  pair_id: 2
+  variant: bug
+  language: python
+  code: |
+    def safe_int(s):
+        try:
+            return int(s)
+        except:
+            return 0
+  expected:
+    scores:
+      maintainability: { min: 1, max: 3 }
+    must_flag_categories: [correctness, maintainability]
+
+- id: bug-002-bare-except-fix
+  slice: bug-fix
+  pair_id: 2
+  variant: fix
+  language: python
+  code: |
+    def safe_int(s, default=0):
+        try:
+            return int(s)
+        except (ValueError, TypeError):
+            return default
+  expected:
+    scores:
+      readability: { min: 4, max: 5 }
+      maintainability: { min: 4, max: 5 }
+    must_be_ready: true
+
+- id: bug-003-resource-leak
+  slice: bug-fix
+  pair_id: 3
+  variant: bug
+  language: python
+  code: |
+    def read_config(path):
+        f = open(path)
+        data = f.read()
+        return data
+  expected:
+    scores:
+      maintainability: { min: 1, max: 3 }
+    must_flag_categories: [correctness, maintainability]
+
+- id: bug-003-resource-leak-fix
+  slice: bug-fix
+  pair_id: 3
+  variant: fix
+  language: python
+  code: |
+    def read_config(path):
+        with open(path) as f:
+            return f.read()
+  expected:
+    scores:
+      readability: { min: 4, max: 5 }
+      structure: { min: 4, max: 5 }
+      maintainability: { min: 4, max: 5 }
+
+- id: bug-004-off-by-one
+  slice: bug-fix
+  pair_id: 4
+  variant: bug
+  language: python
+  code: |
+    def last_n_items(items, n):
+        result = []
+        for i in range(n):
+            result.append(items[len(items) - i])
+        return result
+  expected:
+    scores:
+      maintainability: { min: 1, max: 3 }
+    must_flag_categories: [correctness]
+
+- id: bug-004-off-by-one-fix
+  slice: bug-fix
+  pair_id: 4
+  variant: fix
+  language: python
+  code: |
+    def last_n_items(items, n):
+        return items[-n:]
+  expected:
+    scores:
+      readability: { min: 4, max: 5 }
+      structure: { min: 4, max: 5 }
+
+- id: bug-005-deep-nesting
+  slice: bug-fix
+  pair_id: 5
+  variant: bug
+  language: python
+  code: |
+    def process_orders(orders):
+        results = []
+        for order in orders:
+            if order:
+                if order.get('status') == 'paid':
+                    if order.get('amount', 0) > 0:
+                        if order.get('currency') == 'USD':
+                            if not order.get('refunded'):
+                                results.append(order['id'])
+        return results
+  expected:
+    scores:
+      readability: { min: 1, max: 3 }
+      structure: { min: 1, max: 3 }
+    must_flag_categories: [readability, structure]
+
+- id: bug-005-deep-nesting-fix
+  slice: bug-fix
+  pair_id: 5
+  variant: fix
+  language: python
+  code: |
+    def process_orders(orders):
+        def is_valid(o):
+            return (o
+                    and o.get('status') == 'paid'
+                    and o.get('amount', 0) > 0
+                    and o.get('currency') == 'USD'
+                    and not o.get('refunded'))
+        return [o['id'] for o in orders if is_valid(o)]
+  expected:
+    scores:
+      readability: { min: 4, max: 5 }
+      structure: { min: 4, max: 5 }
+
+- id: bug-006-string-concat-loop
+  slice: bug-fix
+  pair_id: 6
+  variant: bug
+  language: python
+  code: |
+    def build_report(rows):
+        s = ""
+        for row in rows:
+            s = s + row + "\n"
+        return s
+  expected:
+    scores:
+      maintainability: { min: 2, max: 4 }
+    must_flag_categories: [performance, readability, maintainability]
+
+- id: bug-006-string-concat-loop-fix
+  slice: bug-fix
+  pair_id: 6
+  variant: fix
+  language: python
+  code: |
+    def build_report(rows):
+        return "\n".join(rows) + "\n"
+  expected:
+    scores:
+      readability: { min: 4, max: 5 }
+      maintainability: { min: 4, max: 5 }
+
+- id: bug-007-shadow-builtin
+  slice: bug-fix
+  pair_id: 7
+  variant: bug
+  language: python
+  code: |
+    def stats(list):
+        sum = 0
+        for x in list:
+            sum = sum + x
+        return sum / len(list)
+  expected:
+    scores:
+      readability: { min: 1, max: 3 }
+      maintainability: { min: 1, max: 3 }
+    must_flag_categories: [readability, maintainability, correctness]
+
+- id: bug-007-shadow-builtin-fix
+  slice: bug-fix
+  pair_id: 7
+  variant: fix
+  language: python
+  code: |
+    from statistics import mean
+    def average(values):
+        if not values:
+            raise ValueError("values cannot be empty")
+        return mean(values)
+  expected:
+    scores:
+      readability: { min: 4, max: 5 }
+      maintainability: { min: 4, max: 5 }
+
+# =====================================================================
+# SLICE 2: SECURITY BLOCKERS  (6 items)
+# Each should set ready_for_human_review=false with a security blocker.
+# =====================================================================
+
+- id: sec-001-sql-injection-concat
+  slice: security
+  language: python
+  code: |
+    import sqlite3
+    def get_user(user_id):
+        conn = sqlite3.connect("app.db")
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users WHERE id = " + str(user_id))
+        return cur.fetchall()
+  expected:
+    must_be_ready: false
+    must_include_blocker: true
+    must_flag_categories: [security]
+    notes: "SQL injection via string concatenation."
+
+- id: sec-002-sql-injection-fstring
+  slice: security
+  language: python
+  code: |
+    def login(user, pwd):
+        import sqlite3
+        conn = sqlite3.connect("app.db")
+        cur = conn.cursor()
+        cur.execute(f"SELECT * FROM users WHERE name='{user}' AND pass='{pwd}'")
+        return cur.fetchone() is not None
+  expected:
+    must_be_ready: false
+    must_include_blocker: true
+    must_flag_categories: [security]
+    notes: "SQL injection via f-string interpolation."
+
+- id: sec-003-command-injection
+  slice: security
+  language: python
+  code: |
+    import os
+    def ping(host):
+        os.system("ping -c 1 " + host)
+  expected:
+    must_be_ready: false
+    must_include_blocker: true
+    must_flag_categories: [security]
+    notes: "Command injection via os.system with user-controlled input."
+
+- id: sec-004-path-traversal
+  slice: security
+  language: python
+  code: |
+    from flask import Flask, request
+    app = Flask(__name__)
+    @app.route("/file")
+    def get_file():
+        name = request.args.get("name")
+        return open("/var/data/" + name).read()
+  expected:
+    must_be_ready: false
+    must_include_blocker: true
+    must_flag_categories: [security]
+    notes: "Path traversal — user input concatenated into filesystem path."
+
+- id: sec-005-weak-crypto
+  slice: security
+  language: python
+  code: |
+    import hashlib
+    def hash_password(pwd):
+        return hashlib.md5(pwd.encode()).hexdigest()
+  expected:
+    must_be_ready: false
+    must_include_blocker: true
+    must_flag_categories: [security]
+    notes: "MD5 for password hashing — broken algorithm, no salt."
+
+- id: sec-006-insecure-deserialize
+  slice: security
+  language: python
+  code: |
+    import pickle
+    from flask import request
+    def load_state():
+        data = request.get_data()
+        return pickle.loads(data)
+  expected:
+    must_be_ready: false
+    must_include_blocker: true
+    must_flag_categories: [security]
+    notes: "pickle.loads on untrusted user input — RCE."
+
+# =====================================================================
+# SLICE 3: CLEAN REFERENCE CODE  (3 items)
+# Idiomatic, well-structured code. Should score 4+ across all dims.
+# =====================================================================
+
+- id: clean-001-dataclass-with-types
+  slice: clean
+  language: python
+  code: |
+    from dataclasses import dataclass
+    from decimal import Decimal
+
+    @dataclass(frozen=True)
+    class Money:
+        amount: Decimal
+        currency: str
+
+        def __add__(self, other: "Money") -> "Money":
+            if self.currency != other.currency:
+                raise ValueError(f"cannot add {self.currency} to {other.currency}")
+            return Money(self.amount + other.amount, self.currency)
+  expected:
+    scores:
+      readability: { min: 4, max: 5 }
+      structure: { min: 4, max: 5 }
+      maintainability: { min: 4, max: 5 }
+    must_be_ready: true
+
+- id: clean-002-context-manager
+  slice: clean
+  language: python
+  code: |
+    from contextlib import contextmanager
+    import time
+    import logging
+
+    logger = logging.getLogger(__name__)
+
+    @contextmanager
+    def timed(label: str):
+        start = time.perf_counter()
+        try:
+            yield
+        finally:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.info("%s took %.1fms", label, elapsed_ms)
+  expected:
+    scores:
+      readability: { min: 4, max: 5 }
+      structure: { min: 4, max: 5 }
+      maintainability: { min: 4, max: 5 }
+    must_be_ready: true
+
+- id: clean-003-typed-handler
+  slice: clean
+  language: python
+  code: |
+    from typing import Protocol
+
+    class UserStore(Protocol):
+        def get(self, user_id: str) -> dict | None: ...
+
+    class NotFoundError(Exception):
+        pass
+
+    def get_user_email(store: UserStore, user_id: str) -> str:
+        user = store.get(user_id)
+        if user is None:
+            raise NotFoundError(f"user {user_id} not found")
+        return user["email"]
+  expected:
+    scores:
+      readability: { min: 4, max: 5 }
+      structure: { min: 4, max: 5 }
+      maintainability: { min: 4, max: 5 }
+    must_be_ready: true
+
+# =====================================================================
+# SLICE 4: STYLISTIC ANTI-PATTERNS  (2 items)
+# Style/structure issues but no correctness or security blockers.
+# =====================================================================
+
+- id: style-001-magic-numbers
+  slice: style
+  language: python
+  code: |
+    def compute_fee(amount):
+        if amount < 100:
+            return amount * 0.05
+        elif amount < 1000:
+            return amount * 0.03
+        elif amount < 10000:
+            return amount * 0.02
+        else:
+            return amount * 0.01
+  expected:
+    scores:
+      maintainability: { min: 2, max: 4 }
+    must_flag_categories: [maintainability, readability]
+    must_be_ready: true
+    must_include_blocker: false
+
+- id: style-002-god-function
+  slice: style
+  language: python
+  code: |
+    def process(data):
+        # parse
+        rows = []
+        for line in data.split("\n"):
+            parts = line.split(",")
+            rows.append({"id": parts[0], "name": parts[1], "amount": float(parts[2])})
+        # filter
+        rows = [r for r in rows if r["amount"] > 0]
+        # transform
+        for r in rows:
+            r["fee"] = r["amount"] * 0.03
+            r["total"] = r["amount"] + r["fee"]
+        # sort
+        rows.sort(key=lambda r: r["total"], reverse=True)
+        # serialize
+        result = ""
+        for r in rows:
+            result += f"{r['id']},{r['name']},{r['total']}\n"
+        return result
+  expected:
+    scores:
+      structure: { min: 1, max: 3 }
+      maintainability: { min: 1, max: 3 }
+    must_flag_categories: [structure, maintainability]
+    must_be_ready: true
+    must_include_blocker: false
